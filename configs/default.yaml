@@ -1,0 +1,129 @@
+# GeoP2VNet Configuration
+# Point-to-Voxel Projection with Geometric Feature Preservation
+# for Intracranial Aneurysm Segmentation
+
+# Model Configuration
+model:
+  voxel_size: [96, 96, 96]
+  
+  # GFE: Geometric Feature Extraction (10D handcrafted features)
+  gfe:
+    k_small: 8          # Fine-scale kNN neighbors
+    k_large: 32         # Coarse-scale kNN neighbors
+    eps: 1.0e-6         # Numerical stability
+  
+  # P2V: Point-to-Voxel Projection
+  p2v:
+    sigma: 1.0          # Gaussian splatting kernel width
+    kernel_radius: 2    # 5x5x5 splatting neighborhood
+    fast: false         # Use the reference Gaussian splatting layer
+
+  # DGRF: Dual-Gated Residual Fusion
+  fusion:
+    reduction: 4
+    alpha_init: 0.1
+  
+  # Backbone: Swin-UNETR
+  backbone:
+    embed_dim: 48       # Base embedding dimension
+    depths: [2, 2, 2, 2]        # Swin blocks per stage
+    num_heads: [3, 6, 12, 24]   # Attention heads per stage
+    window_size: [7, 7, 7]      # Window attention size
+  
+  # Segmentation Head
+  head:
+    in_channels: 48     # Should match backbone.embed_dim
+    mid_channels: 48
+    out_channels: 2     # Background + Aneurysm
+    dropout: 0.0
+
+# Data Configuration
+data:
+  # Example data directories. Replace with your prepared dataset paths.
+  data_dirs:
+    - "./data/examples"
+  
+  # Point cloud
+  num_points: 2048      # Points per sample
+  pointcloud_dir: "data/pointclouds"  # Pre-generated point clouds
+  
+  # Image preprocessing
+  patch_size: [96, 96, 96]
+  window_level: 450     # CTA window level (HU)
+  window_width: 900     # CTA window width (HU)
+  
+  # Sampling (per case per epoch)
+  pos_patches: 8           # Positive patches (around aneurysm)
+  neg_patches: 8           # Negative patches (random)
+  min_points_in_patch: 100 # Minimum points required in patch
+  preload: true            # Preload all data into memory       # Ratio of positive (aneurysm) patches
+  
+  # Data split
+  val_ratio: 0.2
+  num_workers: 8
+
+# Training Configuration
+train:
+  epochs: 300
+  batch_size: 2         # Adjust based on GPU memory
+  
+  # Optimizer
+  optimizer: "AdamW"
+  lr: 1.0e-4
+  weight_decay: 1.0e-5
+  betas: [0.9, 0.999]
+  
+  # Scheduler
+  scheduler: "cosine"
+  warmup_epochs: 10
+  min_lr: 1.0e-6
+  
+  # Mixed precision
+  amp: true
+  
+  # Gradient
+  grad_clip: 1.0
+  accumulation_steps: 1
+  
+  # Validation & Checkpointing
+  val_interval: 10
+  save_interval: 25
+  save_best: true
+  save_last: true
+
+# Loss Configuration
+loss:
+  # Combined loss: Dice + CrossEntropy
+  dice_weight: 1.0
+  ce_weight: 0.5
+  
+  # Class weights for imbalanced classes
+  class_weights: [1.0, 8.0]   # Background, Aneurysm
+  
+  # Smooth Dice
+  dice_smooth: 1.0
+  
+  # Optional: Focal loss
+  use_focal: false
+  focal_gamma: 2.0
+  focal_alpha: 0.25
+
+# Output Configuration
+output:
+  output_dir: "./outputs"
+  log_dir: "./logs"
+  experiment_name: "geop2vnet_v1"
+
+# Logging (Weights & Biases)
+wandb:
+  enabled: false
+  project: "GeoP2VNet"
+  entity: null
+  name: null
+  group: null
+  tags: ["aneurysm", "point-cloud", "geometric-features"]
+
+# Misc
+seed: 37
+deterministic: true
+cudnn_benchmark: true
